@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COD: LIVE</title>
+    <style>
+        :root {
+            --accent-red: #ff003c;
+            --pantone-705c: #f4dada; 
+            --gold: #d4af37;
+            --sc-blue: #1e88e5;
+            --sc-yellow: #fbc02d;
+            --sc-pink: #e91e63;
+        }
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #4a4a4a; font-family: "Optima", "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; overflow: hidden; }
+
+        /* 封面 */
+        #cover-screen { position: fixed; width: 100%; height: 100%; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+        .cyber-heart { font-size: 100px; color: var(--accent-red); text-shadow: 0 0 20px var(--accent-red); animation: beat 0.8s infinite alternate; cursor: default; user-select: none; }
+        @keyframes beat { to { transform: scale(1.2); } }
+        .game-title { letter-spacing: 15px; font-weight: 300; color: #fff; margin: 30px 0; font-size: 2em; }
+        .init-input { background: transparent; border: 1px solid #333; color: #fff; padding: 12px; margin: 8px; border-radius: 4px; width: 250px; text-align: center; outline: none; }
+        .init-btn { background: var(--accent-red); border: none; color: white; padding: 12px 60px; cursor: pointer; font-weight: bold; margin-top: 20px; letter-spacing: 5px; }
+
+        /* 警告界面 */
+        #warn-screen { position: fixed; width: 100%; height: 100%; background: #050505; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
+        .warn-box { max-width: 450px; border: 1px solid #333; padding: 40px; text-align: center; background: #0a0a0a; border-radius: 8px; }
+
+        /* 主界面 */
+        #main-container { display: none; height: 100%; width: 100%; display: flex; background-color: var(--pantone-705c); }
+        .side-bar { width: 280px; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(10px); border-right: 1px solid #eee; display: flex; flex-direction: column; padding: 25px 20px; z-index: 10; color: #444; position: relative; }
+        .panel-label { color: var(--accent-red); font-size: 0.75em; margin-top: 20px; border-bottom: 1px solid #eee; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; }
+        .panel-value { color: #555; font-size: 0.9em; margin-bottom: 8px; line-height: 1.5; }
+
+        /* 通用弹窗 */
+        .modal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            z-index: 200; display: none; justify-content: center; align-items: center;
+        }
+        .modal-box { 
+            width: 380px; background: rgba(255, 255, 255, 0.98); 
+            border-radius: 12px; padding: 25px; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            border: 1px solid #eee; display: flex; flex-direction: column;
+            max-height: 80vh; /* 防止榜单太长超出屏幕 */
+        }
+        .modal-title { text-align: center; color: var(--accent-red); font-weight: bold; letter-spacing: 3px; margin-bottom: 20px; font-size: 1.3em; border-bottom: 2px solid var(--accent-red); padding-bottom: 10px; }
+        
+        /* 榜单样式优化 */
+        .lb-scroll-area { overflow-y: auto; padding-right: 5px; } /* 榜单滚动条 */
+        .lb-item { display: flex; justify-content: space-between; padding: 10px; margin-bottom: 5px; border-radius: 6px; font-size: 0.9em; color: #333; }
+        .rank-gold { background: #FFD700; color: #000; font-weight: bold; box-shadow: 0 2px 5px rgba(212, 175, 55, 0.3); }
+        .rank-pink { background: #FFC0CB; color: #000; font-weight: bold; }
+        .rank-orange { background: #FFA500; color: #fff; font-weight: bold; }
+        .rank-normal { background: #f5f5f5; color: #666; }
+        .lb-ellipsis { text-align: center; color: #999; margin: 2px 0; font-size: 0.8em; letter-spacing: 2px; }
+        .lb-footer { text-align: center; font-size: 0.75em; color: #aaa; margin-top: 10px; }
+        
+        /* 银行弹窗 */
+        .bank-box {
+            width: 320px; background: #fdfdfd; border-radius: 15px; padding: 0; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2); overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+        .bank-header { background: #004d40; color: white; padding: 15px; text-align: center; font-weight: bold; letter-spacing: 1px; }
+        .bank-content { padding: 25px; text-align: center; color: #333; line-height: 1.6; }
+        .bank-amount { font-size: 1.5em; color: #004d40; font-weight: bold; margin: 10px 0; }
+        .bank-note { background: #f0f4f4; padding: 10px; border-radius: 5px; margin-top: 15px; font-size: 0.9em; font-style: italic; color: #555; text-align: left;}
+        .bank-btn { width: 100%; padding: 15px; background: transparent; border: none; border-top: 1px solid #eee; color: #004d40; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .bank-btn:hover { background: #f5f5f5; }
+
+        /* 存档按钮 */
+        .slot-btn { background: #f9f9f9; border: 1px solid #ddd; padding: 15px; margin-bottom: 10px; border-radius: 8px; cursor: pointer; transition: 0.2s; text-align: left; display: flex; flex-direction: column; gap: 5px; }
+        .slot-btn:hover { border-color: var(--accent-red); background: #fff5f5; transform: translateX(5px); }
+        .slot-title { font-weight: bold; color: #333; font-size: 1.1em; }
+        .slot-info { font-size: 0.8em; color: #888; font-family: monospace; }
+        .slot-empty { color: #bbb; font-style: italic; }
+        .close-btn { background: #333; color: #fff; border: none; padding: 10px; width: 100%; border-radius: 4px; cursor: pointer; margin-top: 15px; font-weight: bold; transition: 0.2s; }
+        .close-btn:hover { background: #000; }
+        .menu-btn { width: 100%; background: #fff; color: #333; border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 8px; cursor: pointer; font-weight: bold; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; font-size: 0.85em; }
+        .menu-btn:hover { background: var(--accent-red); color: white; border-color: var(--accent-red); }
+
+        /* 中心文本区域 */
+        #center-content { flex: 1; display: flex; flex-direction: column; padding: 40px; position: relative; }
+        #text-box { 
+            flex: 1; padding: 45px; overflow-y: auto; 
+            background: rgba(255, 255, 255, 0.7); 
+            border-radius: 40px 40px 40px 5px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255,255,255,0.8);
+            position: relative;
+        }
+        #text-box::after { content: ""; position: absolute; left: -15px; bottom: 0; border-style: solid; border-width: 0 15px 15px 0; border-color: transparent rgba(255, 255, 255, 0.7) transparent transparent; }
+        
+        /* 文本排版 */
+        .story-p { 
+            font-size: 0.95em; 
+            line-height: 1.9; 
+            letter-spacing: 0.8px; 
+            color: #2c2c2c;
+            margin-bottom: 12px;
+            text-indent: 2em; 
+            text-align: justify;
+        }
+        
+        .sc-box { color: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; animation: slideIn 0.5s ease; border-left: 5px solid rgba(0,0,0,0.2); box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .sc-blue { background: var(--sc-blue); }
+        .sc-yellow { background: var(--sc-yellow); color: #333 !important; font-weight: bold; text-shadow: none; } 
+        .sc-pink { background: var(--sc-pink); }
+        @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        .options-bar { padding: 30px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .opt-btn { background: #fff; border: 1.5px solid var(--accent-red); color: var(--accent-red); padding: 12px 25px; cursor: pointer; border-radius: 30px; font-weight: bold; transition: 0.3s; width: 90%; text-align: left; }
+        .opt-btn:hover { background: var(--accent-red); color: #fff; }
+
+        #chat-stream { flex: 1; overflow-y: auto; display: flex; flex-direction: column-reverse; gap: 10px; }
+        .danmu { background: #fff; padding: 10px 14px; border-radius: 15px 15px 2px 15px; font-size: 0.85em; color: #666; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
+    </style>
+</head>
+<body>
+
+    <div id="leaderboard-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title">🏆 贡献总榜</div>
+            <div class="lb-scroll-area">
+                <div class="lb-item rank-gold"><span>1</span> <span>Shadow</span></div>
+                <div class="lb-item rank-pink"><span>2</span> <span>Agencet</span></div>
+                <div class="lb-item rank-orange"><span>3</span> <span>Verilor</span></div>
+                <div class="lb-item rank-normal"><span>4</span> <span>小猫把人叫醒催他吃安眠药</span></div>
+                <div class="lb-item rank-normal"><span>5</span> <span>Josef_329</span></div>
+                <div class="lb-ellipsis">· · ·</div>
+                <div class="lb-item rank-normal"><span>19</span> <span>только</span></div>
+                <div class="lb-ellipsis">· · ·</div>
+                <div class="lb-item rank-normal"><span>23</span> <span>konig</span></div>
+                <div class="lb-ellipsis">· · ·</div>
+                <div class="lb-item rank-normal"><span>45</span> <span>Shadow4-1</span></div>
+                <div class="lb-item rank-normal"><span>46</span> <span>Shadow-V</span></div>
+                <div class="lb-ellipsis">· · ·</div>
+                <div class="lb-item rank-normal"><span>65</span> <span>W.F-602</span></div>
+                <div class="lb-ellipsis">· · ·</div>
+                <div class="lb-item rank-normal"><span>77</span> <span>Caos_41</span></div>
+            </div>
+            <div class="lb-footer">只显示前100位哦</div>
+            <button class="close-btn" onclick="closeModal('leaderboard-modal')">关闭</button>
+        </div>
+    </div>
+
+    <div id="bank-modal" class="modal-overlay">
+        <div class="bank-box">
+            <div class="bank-header">🏦 银行入账通知</div>
+            <div class="bank-content">
+                <p>您的账户收到一笔新的转账。</p>
+                <div class="bank-amount">+ $50,000.00</div>
+                <div class="bank-note">备注： 昨晚的睡裙很漂亮。——S.</div>
+            </div>
+            <button class="bank-btn" onclick="closeBankModal()">确认</button>
+        </div>
+    </div>
+
+    <div id="sl-modal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title" id="sl-title">SYSTEM</div>
+            <div id="slot-list"></div>
+            <button class="close-btn" onclick="closeModal('sl-modal')">取消</button>
+        </div>
+    </div>
+
+    <div id="cover-screen" class="screen">
+        <div class="cyber-heart">❤</div>
+        <div class="game-title">COD: LIVE</div>
+        <input type="text" id="inRealName" class="init-input" placeholder="现实名字 (女)">
+        <input type="text" id="inWebName" class="init-input" placeholder="网名">
+        <button class="init-btn" onclick="showWarn()">开启直播</button>
+        <p onclick="openSL('load', true)" style="color:#555; text-decoration:underline; cursor:pointer; margin-top:15px; font-size:12px;">读取进度</p>
+    </div>
+
+    <div id="warn-screen">
+        <div class="warn-box">
+            <h2 style="color:var(--accent-red); letter-spacing:5px;">⚠️ 内容确认</h2>
+            <p style="color:#bbb; line-height:2; font-size:14px;">本程序包含 🔞 成人内容描写。<br>主角设定为留学生，进行成人直播纯属个人兴趣。<br><br><b>您是否已满18岁并接受以上设定？</b></p>
+            <button class="init-btn" onclick="acceptWarn()">是</button><br>
+            <button class="init-btn" style="background:#333; margin-top:10px;" onclick="backToSetup()">否</button>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div class="side-bar">
+            <div class="panel-label">IDENTITY</div>
+            <div class="panel-value">姓名：<span id="stRealName" style="color:var(--accent-red)"></span></div>
+            <div class="panel-value">网名：<span id="stWebName" style="color:var(--accent-red)"></span></div>
+            <div class="panel-label">STATUS DATA</div>
+            <div class="panel-value">日期：<span id="stDate">2026.01.03</span></div>
+            <div class="panel-value">天气：<span id="stWeather">阴雨连绵</span></div>
+            <div class="panel-value">温度：<span id="stTemp">4°C</span></div>
+            <div class="panel-value">湿度：65%</div>
+            <div class="panel-value">环境：<span id="stEnv">公寓 / 家中</span></div>
+            <div class="panel-value">状态：<span id="stStatus">待机</span></div>
+            <div class="panel-label">OUTFIT</div>
+            <div id="stOutfit" class="panel-value" style="font-size:0.85em; line-height:1.4;">---</div>
+            
+            <div class="panel-label">SYSTEM</div>
+            <button class="menu-btn" onclick="openSL('save')">💾 保存进度</button>
+            <button class="menu-btn" onclick="openSL('load')">📂 读取进度</button>
+            <button class="menu-btn" onclick="toggleLeaderboard()">🏆 查看榜单</button>
+        </div>
+        <div id="center-content">
+            <div id="text-box">
+                <div id="sc-slot"></div>
+                <div id="main-text"></div>
+            </div>
+            <div class="options-bar" id="option-bar"></div>
+        </div>
+        <div class="side-bar">
+            <div class="panel-label" style="color:var(--gold)">LIVE CHAT</div>
+            <div id="chat-stream"></div>
+        </div>
+    </div>
+
+    <script>
+        let pData = { real: "", web: "", scene: "step1", outfit: "宽松的灰色卫衣、学院风半身裙、黑色连裤袜", status: "待机", activeSCs: [], timestamp: "" };
+        let currentSlMode = 'save';
+        let currentDanmuStage = "standby";
+        const danmuStages = {
+            standby: ["快开播呀！", "等得好苦", "今晚穿什么？"],
+            preLive: ["来了来了！", "这件衣服好大好软", "好温馨的落日灯"],
+            liveStart: ["老婆美翻了！", "这锁骨...嘶哈", "伦敦降温注意保暖！"],
+            postAction: ["刚才那个踮脚犯规了！", "Anonymous_K 懂我们！", "这背影我能看一年"],
+            talkArea: ["宝宝现实竟然是恋爱小白？", "指甲油颜色好顶", "同为学子泪目了"],
+            silkNew: ["这件缎面好显白！", "深蓝色真的绝了", "白到发光啊！"],
+            silkReveal: ["卧槽卧槽卧槽！！！", "这是我不花钱能看的吗？！", "救命...鼻血止不住了", "那蕾丝带子...X形简直了"],
+            silkUnbind: ["红痕太绝了！", "别动就这样！", "我的呼吸机呢..."],
+            toyShow: ["b-7是谁？", "新玩具！", "这画质真的绝了"],
+            b7Scene: ["b-7说话啊！", "新大佬出现了？", "运气真好啊b-7"],
+            shadowScene: ["Shadow大哥出手了！", "不愧是榜一", "Shadow的声音好听吗？"],
+            inserted: ["哈啊...", "这声音太顶了", "耳朵怀孕了", "求别停..."],
+            climax: ["啊啊啊啊啊！", "救命！", "这声音太犯规了", "老婆别哭..."],
+            offline: ["这就下播了？", "还没看够呜呜", "Shadow大佬牛逼", "老婆晚安！"],
+            morning: ["早安~", "今天也很美", "指甲油颜色真好看"]
+        };
+
+        function showWarn() {
+            pData.real = document.getElementById('inRealName').value;
+            pData.web = document.getElementById('inWebName').value;
+            if(!pData.real || !pData.web) return alert("请填写名字喔~");
+            document.getElementById('cover-screen').style.display = 'none';
+            document.getElementById('warn-screen').style.display = 'flex';
+        }
+
+        function backToSetup() { document.getElementById('warn-screen').style.display = 'none'; document.getElementById('cover-screen').style.display = 'flex'; }
+        function acceptWarn() { document.getElementById('warn-screen').style.display = 'none'; document.getElementById('main-container').style.display = 'flex'; updateUI(); renderStep(1); }
+        function updateUI() { 
+            document.getElementById('stRealName').innerText = pData.real; 
+            document.getElementById('stWebName').innerText = pData.web; 
+            document.getElementById('stOutfit').innerText = pData.outfit; 
+            document.getElementById('stStatus').innerText = pData.status; 
+            document.getElementById('stDate').innerText = pData.date || "2026.01.03";
+            document.getElementById('stWeather').innerText = pData.weather || "阴雨连绵";
+            document.getElementById('stTemp').innerText = pData.temp || "4°C";
+            document.getElementById('stEnv').innerText = pData.env || "公寓 / 家中";
+        }
+        
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function toggleLeaderboard() { document.getElementById('leaderboard-modal').style.display = 'flex'; }
+        function closeBankModal() { 
+            document.getElementById('bank-modal').style.display = 'none'; 
+            renderAfterBank(); 
+        }
+
+        function openSL(mode, fromCover = false) {
+            currentSlMode = mode;
+            const modal = document.getElementById('sl-modal');
+            const title = document.getElementById('sl-title');
+            const list = document.getElementById('slot-list');
+            modal.style.display = 'flex';
+            title.innerText = mode === 'save' ? "保存进度 (SAVE)" : "读取进度 (LOAD)";
+            list.innerHTML = "";
+            for(let i=1; i<=3; i++) {
+                const savedStr = localStorage.getItem('cod_save_' + i);
+                let content = `<div class="slot-title">数据槽位 ${i}</div><div class="slot-empty">-- 空 --</div>`;
+                if(savedStr) {
+                    try { const savedData = JSON.parse(savedStr); content = `<div class="slot-title">数据槽位 ${i}</div><div class="slot-info">时间: ${savedData.timestamp || '未知'}</div><div class="slot-info">场景: ${savedData.scene}</div>`; } catch(e) {}
+                }
+                const btn = document.createElement('div');
+                btn.className = 'slot-btn';
+                btn.innerHTML = content;
+                btn.onclick = () => handleSlotClick(i, fromCover);
+                list.appendChild(btn);
+            }
+        }
+
+        function handleSlotClick(i, fromCover) {
+            if(currentSlMode === 'save') {
+                pData.timestamp = new Date().toLocaleString();
+                localStorage.setItem('cod_save_' + i, JSON.stringify(pData));
+                openSL('save');
+            } else {
+                const s = localStorage.getItem('cod_save_' + i);
+                if(!s) return alert("这里没有存档！");
+                pData = JSON.parse(s);
+                if(fromCover) { document.getElementById('cover-screen').style.display = 'none'; document.getElementById('main-container').style.display = 'flex'; }
+                closeModal('sl-modal');
+                updateUI();
+                restoreScene();
+            }
+        }
+
+        function addSC(u, a, m) {
+            let color = 'sc-blue';
+            if(a >= 100 && a < 500) color = 'sc-yellow';
+            if(a >= 500) color = 'sc-pink';
+            pData.activeSCs.push({ u, a, m, color, life: 3 }); 
+            if(pData.activeSCs.length > 3) pData.activeSCs.shift();
+            renderActiveSCs();
+        }
+
+        function renderActiveSCs() {
+            const slot = document.getElementById('sc-slot');
+            slot.innerHTML = "";
+            pData.activeSCs.forEach(sc => {
+                const div = document.createElement('div');
+                div.className = `sc-box ${sc.color}`;
+                div.innerHTML = `<b>[Superchat $${sc.a}] ${sc.u}:</b><br>${sc.m}`;
+                slot.appendChild(div);
+            });
+        }
+
+        function tickSC() {
+            if(!pData.activeSCs) pData.activeSCs = [];
+            pData.activeSCs.forEach(sc => sc.life--);
+            pData.activeSCs = pData.activeSCs.filter(sc => sc.life > 0);
+            renderActiveSCs();
+        }
+
+        function addChat(u, m) {
+            const s = document.getElementById('chat-stream');
+            const d = document.createElement('div');
+            d.className = 'danmu';
+            d.innerHTML = `<span style="color:var(--accent-red); font-weight:bold;">${u}:</span> ${m}`;
+            s.prepend(d);
+        }
+
+        function formatText(text) {
+            return text.split('\n\n').map(p => `<div class="story-p">${p.replace(/\n/g, '<br>')}</div>`).join('');
+        }
+
+        function restoreScene() {
+            renderActiveSCs();
+            switch(pData.scene) {
+                case "step1": renderStep(1); break;
+                case "step2": renderStep(2); break;
+                case "step3": renderStep(3); break;
+                case "scReply": scReply(); break;
+                case "action": renderAction(); break;
+                case "nextArea": renderNextArea(); break;
+                case "silkScene": renderSilkScene(); break;
+                case "silkReveal": renderSilkReveal(); break;
+                case "unbindQ": renderUnbindQuestion(); break;
+                case "unbindA": renderUnbindAction(); break;
+                case "unbindF": renderUnbindFinal(); break;
+                case "toyShow": renderToyShow(); break;
+                case "b7": renderB7(); break;
+                case "b7wait": renderB7Wait(); break;
+                case "shadow": renderShadow(); break;
+                case "insert": renderInsertion(); break;
+                case "submit": renderSubmit(); break;
+                case "shadowControl": renderShadowControl(); break;
+                case "141react": render141Reaction(); break;
+                case "climax": renderClimax(); break;
+                case "climax141": renderClimax141(); break;
+                case "climaxGraves": renderClimaxGraves(); break;
+                case "finalRoom": renderFinalRoom(); break;
+                case "endStream": renderEndStream(); break;
+                case "charSelect": renderCharacterSelect(); break;
+                case "povSoap": renderSoapPOV(); break;
+                case "povGaz": renderGazPOV(); break;
+                case "povGhost": renderGhostPOV(); break;
+                case "povPrice": renderPricePOV(); break;
+                case "nextPart": renderNextPart(); break;
+                case "buyBreakfast": renderBuyBreakfast(); break;
+                case "goSchool": renderGoSchool(); break;
+                case "afterBank": renderAfterBank(); break;
+                default: renderStep(1);
+            }
+        }
+
+        // --- 剧情逻辑区 (保持全量文本) ---
+        function renderStep(step) { if(step===1) { pData.activeSCs=[]; tickSC(); } const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); if(step === 1) { pData.scene = "step1"; currentDanmuStage = "standby"; t.innerHTML = formatText(`这是一个阴雨连绵的伦敦冬夜。窗外的雨点没完没了地敲打着公寓的玻璃，远处偶尔传来警笛声。在这个动荡的世界局势下，伦敦的夜晚总显得有些躁动不安。但那些纷争对于此时此刻的你来说，还很遥远。\n\n你刚结束了一天的大学课程，桌上还摊开着几本厚重的专业书 and 写了一半的论文。你伸了个腰，将那堆属于留学生的枯燥现实推到一边，转身面对房间另一侧那个属于“${pData.web}”的小天堂。\n\n那里布置得温馨而暧昧。柔和的落日灯将墙面染成昏黄的色调，一张铺着浅色毛绒毯子的单人沙发正对着镜头。你熟练地调整摄像头的位置——<b>严格卡在锁骨以下</b>，确保即使稍大动作也不会露出下巴。\n\n今晚的预告已经发出去了，主题是“丝带”。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderStep(2)">继续</button>`; } else if(step === 2) { tickSC(); pData.scene = "step2"; currentDanmuStage = "preLive"; pData.outfit = "性感丝绸吊带睡裙、宽大的针织开衫"; updateUI(); t.innerHTML = formatText(`你的后台私信已经开始闪烁。大部分都在讨论你昨天发布的那个付费短片——《烟花》。\n\n视频内容： 第一人称视角（POV）。你穿着那件白色的羊绒大衣，手因为寒冷而微微缩在袖子里。镜头递过来一杯热可可，你接过时指尖轻轻触碰到对方。背景是炸裂的烟花，你的声音温柔又带着一点点羞涩：“这还是我第一次和别人一起看这么美的烟花……”\n\n虽然看不见脸，但你肢体的微动作和那种欲语还休的氛围感，让无数在现实中疲惫不堪的灵魂感到了久违的心动。\n\n直播软件已经打开，目前处于“准备中”状态。\n\n你换好了一套居家感十足又不失性感的丝绸吊带睡裙，外面罩了一件宽大的针织开衫。一切准备就绪。你看着屏幕上自己脖子以下的画面，手指悬停在 [开始直播] 的按钮上。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderStep(3)">开始直播</button>`; } else if(step === 3) { tickSC(); pData.scene = "step3"; currentDanmuStage = "liveStart"; pData.status = "LIVE"; updateUI(); t.innerHTML = formatText(`随着鼠标轻点，屏幕右上角的指示灯由灰转红，显示出显眼的 [LIVE] 字样。\n\n镜头里，你身穿香槟色的丝绸吊带睡裙，锁骨在暖黄色的灯光下泛着细腻的光泽。那件宽大的米色粗针织开衫松松垮垮地挂在肩头，恰到好处地遮住了一部分肌肤，比直接裸露更引人遐想。\n\n你的声音带着一点点软糯的鼻音，瞬间抚平了网络另一端许多人躁动的心绪。\n\n几乎是同一时间，右侧的聊天栏开始像瀑布一样飞速滚动起来。\n\n屏幕上又飘过几个名为“浪漫烟花”的付费特效，在你的直播画面上炸开几朵粉色的光效。`); setTimeout(()=>addChat("Viper_141", "注意保暖啊！伦敦最近降温很厉害。"), 500); setTimeout(()=>addSC("BlueSky", 50, `“${pData.web}”晚上好。那个烟花的短片我看了二十遍，最后那句“第一次和别人一起看”是真的吗？感觉你的声音有点抖，听得我心都颤了一下。`), 2000); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="scReply()">没错哦！当然！要除开爸爸妈妈啦～</button>`; } }
+        function scReply() { tickSC(); pData.scene = "scReply"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你对着麦克风轻声回答道：“没错哦！当然！要除开爸爸妈妈啦～”\n\n那件宽大的针织开衫随着你的动作滑落了一点，露出一小片圆润白皙的肩头。\n\n窗外的雨声似乎更大了些，但并没有打扰到这份封闭空间里的安宁。\n\n这时，一条新的弹幕引起了你的注意。`); setTimeout(()=>addChat("Anonymous_K", `“${pData.web}” ，最近外面真的很乱，听说昨晚卡姆登那边又有武装冲突了。你一个人住要注意安全啊，门窗锁好了吗？`), 1000); o.innerHTML = `<button class="opt-btn" onclick="renderNextArea()">选项1：“已经关好啦！谢谢关心~”</button><button class="opt-btn" onclick="renderAction()">选项2：“哦！提醒我了！”</button>`; }
+        function renderAction() { tickSC(); pData.scene = "action"; currentDanmuStage = "postAction"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`“哦！提醒我了！”\n\n你的语气里透着一丝恍然大悟的惊讶。随着话音落下，是一阵椅子向后推开的摩擦声。\n\n你从镜头前站了起来。\n\n由于摄像头是固定在桌面高度的，当你站起身时，画面瞬间变成了一场视觉盛宴。镜头正好对着你的腰腹位置，随着你的转身，那件香槟色的丝绸睡裙展现出了惊人的杀伤力——裙摆短得恰到好处，堪堪遮住大腿根部，随着步伐轻轻晃动，边缘蕾丝划过你的大腿肌肤。\n\n你走向窗边。虽然只有短短几步路，但你并没有急着走完。\n\n你背对着镜头，踮起脚尖去够那个稍微有些高的老式窗锁。那一瞬间，丝绸裙摆随着身体的拉伸向上缩了几公分，那件宽大的针织开衫则顺着肩膀滑到了手肘处，露出了原本被遮住的、线条优美的背部蝴蝶骨，以及下方若隐若现的腰窝。\n\n[咔哒。]\n\n你转过身，并没有立刻拉好衣服，而是就这样迎着镜头走了回来。丝绸贴着肌肤，随着走动勾勒出柔软的身体曲线。\n\n当你重新坐回沙发上时，裙摆顺势上滑，你“不经意”地用手压了一下，动作轻柔却又引人遐想。你拉起滑落的开衫重新裹住肩膀，恢复了刚才那副乖巧的模样，仿佛刚才那几秒钟的“风景”只是无心之失。\n\n凑近麦克风，你的笑声里带着明显的愉悦和一点点狡黠的甜腻： “谢谢你啦……AnonymousK，嘿嘿～”\n\n接下来是弹幕在短暂的停滞后，瞬间爆发了。`); setTimeout(()=>addChat("NorthOfNothing", "我宣布 AnonymousK 是今晚的 MVP！！！"), 500); setTimeout(()=>addChat("Ghll", "救命……刚才那个背影……我要死了。"), 1000); setTimeout(()=>addChat("TacticalVisor", `那个踮脚的动作是犯规吧？绝对是犯规吧？！“${pData.web}”你知道自己在做什么吗！`), 1500); setTimeout(()=>addChat("LonRain", "窗户锁好了，但我的心被你锁死了。"), 2000); setTimeout(()=>addChat("Anonymous_K", "……不客气。（我觉得我的血压升高了）"), 3000); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderNextArea()">继续直播</button>`; }
+        function renderNextArea() { tickSC(); pData.scene = "nextArea"; currentDanmuStage = "talkArea"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`此时此刻，聊天室的滚动速度虽然稍微慢下来了一点，但依然像是一条不知疲倦的河流。五花八门的留言在你眼前划过：有在刷屏求关注的，有在讨论刚才那那一瞬间“福利”的，也有在认真倾诉烦恼的。\n\n目前屏幕上停留时间较长、或者反复刷过的几类话题，哪一个让你最想回复？`); o.innerHTML = `<button class="opt-btn" onclick="talkBranch(1)">求安慰的“加班狗”： Midnight_Operator “能不能对我说句‘辛苦了’？最好用中文。”</button><button class="opt-btn" onclick="talkBranch(2)">留学生的崩溃吐槽： UCL_Sufferer “我的论文Deadline就在明早八点...”</button><button class="opt-btn" onclick="talkBranch(3)">单纯的细节控： SoftTouch “只有我注意到 ${pData.web} 今天涂了新的酒红色指甲油吗？”</button><button class="opt-btn" onclick="talkBranch(4)">恋爱提问： Cherry_Bomb “${pData.web} 如果不露脸，你会更看重另一半的什么特质？”</button>`; }
+        function talkBranch(id) { tickSC(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); if(id === 1) { t.innerHTML = formatText(`Midnight_Operator ：“${pData.web}”，刚刚结束了一个很糟糕的‘外勤’任务，受了点轻伤，现在一个人在安全屋里……感觉糟透了。能不能对我……或者对像我这样今晚还在外面拼命的人，说句‘辛苦了’？最好是用中文说，我想家了。” (这人的ID听起来像个硬汉，但语气里透着难以掩饰的疲惫和脆弱。)\n\n“辛苦了！Midnight_Operator……” 你停顿了一下，似乎是想透过网络给他传递一些力量，“因为有你在，我安心多了！”\n\n虽然你不知道他在哪里，执行着什么任务，但在这种动荡的局势下，这句单纯的感谢或许比什么都管用。`); setTimeout(()=>addChat("Midnight_Operator", "谢谢。这句话...我会记很久。"), 1000); } else if(id === 2) { t.innerHTML = formatText(`UCL_Sufferer ：“救命啊 ${pData.web}……我的论文Deadline就在明早八点，但我现在盯着Word文档只想哭。你也是学生吧？你是怎么平衡学业和……呃，这种‘特别’的兼职的？我现在感觉我要猝死了。” (非常现实且接地气的烦恼，甚至带点对你身份的试探。)\n\n你看到了那条关于论文的哀嚎。你瞬间破功，刚才的“知心姐姐”形象一下子垮掉，变成了一个同样被学业折磨的普通女大学生。\n\n“哎呀……UCL_Sufferer，”你拖长了语调，声音里带着那种只有学生才懂的“绝望”共鸣，甚至还带着点撒娇的鼻音，“我没有平衡呜呜……宝宝，我也喜欢拖拖拖……”\n\n你伸出一只手在空中无奈地比划了一下，仿佛在挥散那些烦人的Deadline： “我现在桌子上还有没写完的作业呢。没关系，今晚我陪你！我们一起‘云’赶工。”`); setTimeout(()=>addChat("UCL_Sufferer", "有这句话我今晚能写一万字！"), 1000); } else if(id === 3) { t.innerHTML = formatText(`SoftTouch ：“只有我注意到 ${pData.web} 今天涂了新的酒红色指甲油吗？是那种很深的酒红色！配这个香槟色的裙子太欲了……能不能把手凑近镜头让我们看清楚一点？” (伴随了一个小额付费打赏，纯粹的视觉享受请求。)\n\n你看到 SoftTouch 的请求，嘴角上扬。你放下茶杯，将左手缓缓伸向镜头。\n\n在高清摄像头的聚焦下，那只手显得格外纤长.指甲被修剪得圆润干净，涂着深酒红色的指甲油，色泽浓郁得像是一杯陈酿的波尔多红酒。\n\n你故意将指尖轻轻抵在镜头前，就像是隔着屏幕点在观众的鼻尖上。深红色的指甲与你香槟色的丝绸裙摆、形成了极其强烈的视觉冲击。\n\n你轻轻晃动了一下手指，展示着指甲油的光泽，语气里满是炫耀新事物的得意：\n\n“好看吧～”`); setTimeout(()=>addChat("SoftTouch", "这只手...我真的看不够。"), 1000); } else if(id === 4) { t.innerHTML = formatText(`Cherry_Bomb ：“看刚才那个烟花视频，${pData.web} 真的很会谈恋爱的感觉哎！有点好奇，如果不露脸的话，你会更看重另一半的什么特质？声音？手？还是……气味？” (这个问题后面紧跟着一堆“+1”，显然大家都很好奇你的择偶标准。)\n\n“至于……Cherry_Bomb 问的择偶标准……”\n\n你思考了几秒，手指无意识地在瓷杯边缘轻轻摩挲： “我的择偶吗？眼缘吧？其实……我没有在现实生活中喜欢过人，所以没有太多经验……”\n\n这句大实话让弹幕瞬间炸开了锅，大家似乎对“网络上的大众情人${pData.web}现实中竟然是恋爱小白”这个反差萌感到无比兴奋。`); setTimeout(()=>addChat("Cherry_Bomb", "原来老婆是纯情派！我更有机会了！"), 1000); } o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderSilkScene()">继续直播</button>`; }
+        function renderSilkScene() { tickSC(); pData.scene = "silkScene"; currentDanmuStage = "silkNew"; pData.outfit = "深蓝色缎面吊带睡裙、纯白蕾丝束缚丝带"; updateUI(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你突然想起些什么，起身去了里屋，回来时已经换了一套衣服。\n\n镜头里，你穿着一件崭新的缎面吊带睡裙。这件裙子的垂坠感极好，光泽度像是夜空下的海面，把你露在外面的肩膀和锁骨衬托得白得发光。\n\n你的声音里带着掩饰不住的小兴奋，“新衣服到了，给大家看看。”\n\n说着，你从铺着毛毯的单人沙发上站了起来。你向后退了两步，给自己留出一点空间。随着你身体的转动，深蓝色的缎面裙摆像一朵花朵般漾开。`); setTimeout(()=>addChat("用户_992", "这件深蓝色真的太显白了！"), 500); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderSilkReveal()">展示“重点”</button>`; }
+        function renderSilkReveal() { tickSC(); pData.scene = "silkReveal"; currentDanmuStage = "silkReveal"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你重新站定在镜头正前方，带着一点点恶作剧得逞般的狡黠笑意，轻声说道：\n\n“不过呢，这件衣服真正的重点……在里面。”\n\n你的双手伸向身体两侧，抓住了睡裙的下摆。\n\n在无数双眼睛的注视下，你缓缓地、匀速地将那层深蓝色的缎面向上撩起。裙摆滑过大腿、腰腹，最后停在锁骨……”\n\n那一瞬间，直播间的弹幕出现了短暂的真空，紧接着彻底炸裂。\n\n在那层深蓝色的掩护之下，你白皙光滑的躯体上，竟然缠绕着错综复杂却又极具美感的蕾丝丝带。\n\n纯白色的宽蕾丝带，带着精致的玫瑰花纹路。它们紧贴着你的肌肤，在胸前交叉出的“X”形，勒出饱满的弧度，随后沿着肋骨向下延伸，在纤细的腰肢上缠绕了两圈，最后消失在身下。\n\n你保持着这个撩起裙子的姿势，微微挺了挺胸，让那些蕾丝陷得更深了一些。你很满意屏幕上那些疯狂滚动的“卧槽”、“救命”、“这是我不花钱能看的吗”。\n\n你凑近麦克风，声音软绵绵的，带着一丝得意和诱惑：\n\n“看！这个还有配套的……小丝带，我的小巧思哦～”`); setTimeout(()=>addChat("用户_77", "卧槽卧槽卧槽！！！"), 300); setTimeout(()=>addChat("用户_救命", "救命...我要流鼻血了。"), 800); setTimeout(()=>addChat("用户_SC", "这是我不花钱能看的吗？！"), 1300); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderUnbindQuestion()">继续</button>`; }
+        function renderUnbindQuestion() { tickSC(); pData.scene = "unbindQ"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`坏心思地问一句：“既然大家这么喜欢丝带，那……要不要帮我解开它？”\n\n伏到镜头前用胳膊支撑着身体。`); setTimeout(()=>addChat("Tactical_Reload", "操……这该死的丝带，我想把它撕碎。"), 500); setTimeout(()=>addChat("NightStalker", "别解开，就这样。我想看它们把你勒出红印的样子，一定很美。"), 1000); setTimeout(()=>addChat("Vandal_Actual", "用牙齿。我想用牙齿把那个结咬开，一边咬一边看着你的身体发抖。"), 1500); setTimeout(()=>addChat("BigBoss_Fan", "妈的，把手伸进去，顺着那条丝带往下摸……"), 2000); setTimeout(()=>addChat("LondonFog", "跪求一个撕丝带的定制视频！多少钱我都出！"), 2500); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderUnbindAction()">寻找幸运观众</button>`; }
+        function renderUnbindAction() { tickSC(); pData.scene = "unbindA"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`不管开了多少次直播，每每看见这些直白甚至粗俗的文字，你的脸颊瞬间滚烫，红晕一直蔓延到耳根。心脏在胸腔里剧烈跳动。\n\n幸好。 你在心里长舒一口气，庆幸镜头只拍到锁骨以下。没有人能看到你现在因为羞耻而咬紧下唇的样子，也没有人能看到你眼神里的慌乱。在他们眼里，你依然是那个游刃有余的“${pData.web}”。\n\n你强装镇定，伸出手指在触控板上滑动，试图在这些疯狂的脏话和求欢中抓住一个互动的点。`); addSC("Wolfpack_Leader", 100, "从中间那个结开始。我想看着它散开，听你的喘息声。"); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderUnbindFinal()">解开丝带</button>`; }
+        function renderUnbindFinal() { tickSC(); pData.scene = "unbindF"; currentDanmuStage = "silkUnbind"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你没有急着动作，而是让手指在那个位于胸口正中央的蝴蝶结上停留了几秒。镜头的高清画质诚实地记录下了你指尖极轻微的颤抖。不知道是因为紧张，还是因为维持这个姿势太久后的肌肉反应，但在观众眼中，这反而成了一种极致的兴奋剂。\n\n你捏住了蝴蝶结的一端丝带。动作慢得像是一个世纪。随着指尖缓缓向外拉扯，那个紧致的结开始变形、松动。布料摩擦发出的细微声响，通过麦克风像电流一样钻进每一个戴着耳机的人的耳朵里。呼……\n\n随着最后的一点阻力消失，蝴蝶结彻底散开了。\n\n原本紧紧勒在胸口、压迫着柔软肌肤的那道束缚瞬间消失。蕾丝带失去了张力，松垮地垂落下来，顺着你胸前的弧度滑落到地上。原本被蕾丝紧勒的地方，因为刚才的压迫，在皮肤上留下了几道淡淡的粉红色勒痕。\n\n几道红痕横亘在身体上，随着你的呼吸微微起伏，像是某种被标记后的证明。\n\n你感觉到胸口的空气突然流通了，那种被束缚的压迫感骤然一松，让你忍不住发出了一声极轻的、几乎听不见的喟叹。`); setTimeout(()=>addChat("Wolfpack_Leader", "[Superchat $100] 操。那道红印……我要疯了。"), 1000); setTimeout(()=>addChat("Gaa_2-0", "别动！就这样！那个红痕太绝了！"), 1500); setTimeout(()=>addChat("User9981", "救命救命救命，丝带滑下去了，快掉下去了！"), 2000); setTimeout(()=>addChat("Medic_Help", "我的呼吸机呢……这也太……"), 2500); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderToyShow()">继续直播</button>`; }
+        function renderToyShow() { tickSC(); pData.scene = "toyShow"; currentDanmuStage = "toyShow"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你从身后的置物架上拿出了那个精致的小盒子。是一个纯白色的跳蛋。\n\n“今天我们玩这个！”\n\n你把那个小玩具托在掌心，凑近镜头展示。\n\n“之前一直想试试但是总忘记，正好颜色很配今天的穿搭，来试试吧！还是老样子，连麦得控制权哦。”\n\n你开始在后台寻找那个能掌控你身体震颤频率的“幸运儿”。\n\n你是选择这个完全没有印象的，好像是新人的”b-7“？还是刚刚姗姗来迟的榜一金主“Shadow”？”`); o.innerHTML = `<button class="opt-btn" onclick="renderShadow()">选择：Shadow</button><button class="opt-btn" onclick="renderB7()">选择：b-7</button>`; }
+        function renderB7() { tickSC(); pData.scene = "b7"; currentDanmuStage = "b7Scene"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`与此同时，几千公里外的某个隐秘据点。昏暗的简报室里，蓝色的战术大屏照亮了四张严肃紧绷的脸。桌上散落着卫星地图、目标照片和喝了一半的黑咖啡。\n\n“正在追踪目标的代理服务器跳转，” Gaz 戴着耳机，手指在键盘上飞快敲击，神情专注，“这该死的毒枭用了多重跳板……Wait，我抓到了一个活跃的IP端点，正在接入查看内容，可能是他们的洗钱后台或者通讯频道。”\n\nPrice 咬着雪茄，眉头紧锁：“投到大屏上。”\n\nGhost 抱臂站在阴影里，一言不发。Soap 凑在屏幕前：“希望能抓到那个混蛋的尾巴。”\n\n“收到，正在接入——” Gaz 敲下回车键。\n\n[画面接入成功]\n\n原本显示着枯燥数据流的大屏幕瞬间切换。没有毒枭，没有武器清单，没有非法交易记录。映入眼帘的，是一个温馨暧昧的卧室背景。高清画面正中央，是洁白的锁骨、深蓝色的缎面睡裙、勒出红痕的肌肤，以及一只拿着白色震动器的纤细手掌。\n\n紧接着，那个软糯、甜腻、带着点撒娇意味的女声，通过环绕立体声音响，在严肃的简报室里回荡： “这位……‘b-7’……交给你了？现在方便吗？”\n\n死一般的寂静。空气仿佛凝固了。Gaz 的手僵在键盘上。 Ghost 面具下的眼睛微微睁大。 Price 嘴里的雪茄差点掉下来。\n\n他们用来追踪的网络代号，正是临时生成的b-7。\n\n“呃……” Gaz 喉结滚动了一下，看着屏幕上那个正对着他们“展示”玩具的无头身躯，声音干涩，“长官，看来……是个误会。这只是个……民用直播间。”\n\n没有人说话。四个大男人盯着屏幕上那截白皙的脖颈和那个小玩具，尴尬得连呼吸声都听得见。”`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderB7Wait()">等待</button>`; }
+        function renderB7Wait() { tickSC(); pData.scene = "b7wait"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你等了一会儿，耳机里并没有传来连麦申请，甚至连一条弹幕回复都没有。\n\n“嗯？” 你有些疑惑地歪了歪头，发丝垂落在胸前，“那好吧？看来我们的 b-7 现在不方便。”\n\n你并没有太在意，那种轻松随意的态度反而更显得娇憨：“没关系，这个机会给你留到下次哦～”\n\n你重新将视线投向那滚动的ID列表。这一次，你决定找个熟人。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderShadow()">换人</button>`; }
+        function renderShadow() { tickSC(); pData.scene = "shadow"; currentDanmuStage = "shadowScene"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`这位你直播间的“榜一大哥”，虽然话不多，但每次出手都阔绰得惊人。既然是熟客，肯定玩得起。\n\n“那么，这位……” 你的声音变得更加甜美，“‘Shadow’ 先生。”\n\n你看着那个闪闪发光的勋章，忍不住轻笑了一声：“我知道你在听。交给你了哦？你现在方便嘛？”\n\n简报室里。\n\nGaz 正准备切断这个尴尬的画面，Soap 突然伸出手拦住了他：“等等！”\n\n“怎么了？” Price 皱眉。\n\n“看那个ID，” Soap 指着屏幕下方那个刚刚被点名的名字，表情古怪，“Shadow。那个头像……这人是个顶级VIP。”\n\n就在这时，大屏幕的音响里传出了那个被连麦者的声音。\n\n那是一个略显沙哑、带着德州口音的男声，语气里透着一种的自信和轻浮。\n\n“Well, 晚上好啊，darlin'（亲爱的）。”\n\n那个声音通过麦克风传来，带着明显的电流质感，但那种独特的腔调化成灰他们都认得。\n\n“你知道我永远对你都是‘方便’的。今晚这身蓝色……啧，真想亲手帮你把剩下的那点带子也解开。”\n\n简报室里再次陷入了死寂。但这次不是尴尬，而是震惊。\n\nSoap 的眼珠子都要瞪出来了，他转头看向身后的队友，难以置信地吼道： “Graves？！那个混蛋还会看色情直播？！”\n\nPrice 的脸色黑得像锅底。 Gaz 看着屏幕上显示的那个闪耀的 VIP 勋章——那代表着在这个直播间累计消费了天文数字——嘴角抽搐：“他甚至……还是个大粉。”\n\n你完全不知道此刻有多少人在听着这场对话。听到耳机里传来那个熟悉的、带着德州口音的男声，你的脸颊微微发烫。虽然隔着屏幕，但他那种仿佛要透过网线把你剥光的语气总是让你有些招架不住。\n\n<span style="color:var(--accent-red)">系统提示：[对方已接受连麦请求]</span>`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderInsertion()">继续直播</button>`; }
+        function renderInsertion() { tickSC(); pData.scene = "insert"; currentDanmuStage = "inserted"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你微微调整了一下坐姿，身体顺着沙发靠背向下滑了一点。\n\n为了确保不被镜头捕捉到，你放下一直堆在胸上的裙摆，在镜头前制造出一个视觉盲区。镜头此刻只能拍到你起伏剧烈的胸口，以及因为抓住沙发而指节泛白的双手。\n\n但在高清收音的麦克风下，衣料摩擦的细碎声响无处遁形。\n\n随着跳蛋没入体内，一股陌生的充实感和冰凉瞬间占据了你的感官。\n\n“哈啊……”\n\n一声无法抑制的、带着颤抖的喘息溢出喉咙。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderSubmit()">“是、是的…嗯啊…主人…”</button>`; }
+        function renderSubmit() { tickSC(); pData.scene = "submit"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`“是、是的…嗯啊…主人…”\n\n你记得连麦频率高的粉丝的称呼喜好。\n\n那声顺从的“主人”，带着此时此刻特有的脆弱和鼻音，像是一把带着倒钩的小刷子，不仅刷过了Graves的心尖，也顺着那条被监听的数据线，狠狠地刮擦着简报室里每一个男人的神经末梢。\n\n空气里的性质变了。不再是滑稽的窥视，而是一种粘稠的、让人喉咙发干的共感尴尬与躁动。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderShadowControl()">连麦那头</button>`; }
+        function renderShadowControl() { tickSC(); pData.scene = "shadowControl"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Graves 发出了一声极其满意的低笑，身为上位者的掌控欲被这声“主人”满足。\n\n“Good girl...（乖女孩）”\n\n他的语气不再仅仅是调笑，而是带上了一丝暗哑的危险气息。 “既然这么乖，那就奖励你一点...更好的感觉。”\n\n他又敲击了两下键盘。\n\n体内跳蛋震动频率骤然改变，从温吞的持续震动变成了的波浪式脉冲。\n\n“....啊！”\n\n你惊呼一声，身体瞬间绷直，双手死死抓住了身下的沙发垫，指节因为用力而泛白。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="render141Reaction()">简报室里</button>`; }
+        function render141Reaction() { tickSC(); pData.scene = "141react"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`没有人再说话，也没有人再爆粗口。那种原本用来掩饰尴尬的嘲讽氛围荡然无存，取而代之的是一种名为“雄性本能”的死寂。\n\nSoap 原本捂着脸的手慢慢放了下来。他那双蓝眼睛此刻有些发直，死死盯着大屏幕上你因为那声“主人”而起伏的柔软线条。 那声“主人”在他脑子里回荡。该死，虽然她是叫给Graves听的，但那个声音太甜、太软了，软得让他感觉自己的后颈皮一阵发麻，裤裆里竟然莫名其妙地紧了一下。他下意识地舔了舔干燥的嘴唇，眼神不再清澈，而是染上了一层晦暗不明的热度。\n\nGaz 戴着耳机，受到的冲击是最大的。高保真的音效将你哪怕最细微的吞咽声、黏腻的水声都毫无保留地灌进他的耳朵。原本敲击键盘的手指停在半空，微微颤抖。他试图专注于代码，但视线却不由自主地被屏幕上那截白皙晃眼的大腿吸引。他喉结剧烈滚动了一下，不得不摘下一侧的耳机，试图让自己冷静下来，但那只露在外面的耳朵已经红得即使是深色皮肤都清晰可见。\n\nPrice 咬着雪茄的动作停滞了。他眯起眼睛，原本审视敌人的目光此刻变得有些深沉和危险。他是个老兵，见惯了大风大浪，但这并不代表他是个圣人。看着屏幕里那个在别人控制下无助颤抖的身体，听着那声极具奉献意味的“主人”，一种古怪的的占有欲在心底一闪而过——那种“美好的东西被混蛋糟蹋了”的愤怒，混合着“如果掌控权在我手里会怎样”的阴暗设想。\n\nGhost连姿势都没变，但他面具下的呼吸节奏彻底乱了。双眼睛死死锁住屏幕上那个被欲望折磨的躯体。 他痛恨Graves，但此刻，不仅是痛恨。 当听到那声“主人”时，他的手指无意识地攥紧了胳膊上的战术带。他在想——如果那条丝带是他解开的？如果那个让他发疯的声音，是在叫他的名字？或者……是在他的身下哭出来？\n\n这不仅仅是情报收集了。 这是一场单方面的、隔空的、集体性的性骚扰，而受害者和加害者甚至难以界定。\n\nGraves 确实是那个在操作的人。 但他们这群“正义人士”，此刻却像是那躲在暗处的偷窥者，在共享着这份快感。\n\n屏幕上，Graves 的声音再次传来，带着那种让人嫉妒的从容： “说出来，“${pData.web}”。告诉大家，现在是谁在让你舒服？”\n\nPrice 声音沙哑得吓人，打破了沉默： “Gaz……追踪进度还要多久？”\n\n“还需要……两分钟，长官。” Gaz 的声音有些干燥。\n\n“快点。” Price 的命令简短有力，透着一股莫名的急躁，“在这个混蛋……做更过分的事情之前。”`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderClimax()">高潮</button>`; }
+        function renderClimax() { tickSC(); pData.scene = "climax"; currentDanmuStage = "climax"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`原本平稳的直播画面剧烈晃动。\n\n观众们只看到一阵天旋地转——天花板的灯光、模糊的深蓝色裙摆、还有乱成一团毯子在镜头前飞速掠过。\n\n紧接着，镜头被一只手死死攥住，画面陷入了一片暧昧不明的黑暗，偶尔只能从指缝里透进一丝微弱的光线。\n\n虽然看不见画面，但听觉刺激被无限放大了。\n\n“嗯…等…噫！！”\n\n那声短促而尖锐的惊呼，带着濒临崩溃的哭腔，甚至能听出声带因为过度刺激而产生的痉挛，那是极度欢愉后的失控。\n\n随后是一阵喘息声，伴随着沙发被重重压陷的摩挲声。\n\n隔着黑暗的屏幕，那声断断续续、带着浓重鼻音和讨好的话语传了出来，软得像是一摊化开的水： “呜……谢谢……谢谢主人……”`); o.innerHTML = `<button class="opt-btn" onclick="renderClimax141()">简报室里</button><button class="opt-btn" onclick="renderClimaxGraves()">连麦那头</button>`; }
+        function renderClimax141() { tickSC(); pData.scene = "climax141"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`[ 哐当！]\n\n一声巨响打破了死寂。是 Soap 猛地从椅子上站了起来，动作大得带翻了手边的战术水杯，水洒了一地。\n\n他的脸此刻涨得通红，眼神慌乱得无处安放，胸口剧烈起伏着。那声带着哭腔的“谢谢主人”像是一记重锤，砸碎了他所有的理智防线。他感觉自己的耳根在燃烧，某种从未有过的的嫉妒和渴望混杂在一起，让他几乎想要砸了面前的屏幕。\n\n“Fuck...” Soap 用双手狠狠搓了一把脸，声音沙哑得不像话，苏格兰口音重得几乎听不清，“她……该死的……”\n\nGaz 在那声尖叫传出的瞬间就一把扯掉了耳机，像是被烫到了一样把它扔在桌上。但即使摘掉了耳机，那余音似乎还残留在耳道里，让他整个人都在微微发抖。他低着头，双手撑在桌面上，不敢抬头看队友，因为他很清楚自己现在的表情有多么狼狈——那种身为男人的本能反应根本无法掩饰。\n\nPrice 并没有阻止 Soap 的失态。因为连他自己，在听到那声顺从的“主人”时，咬着雪茄的牙齿都猛地用力，在那根昂贵的雪茄上咬出了深深的齿痕。他盯着屏幕上那片黑暗，眼神晦暗不明，喉结上下滚动了一次，强行压下小腹窜起的那股邪火。 他是个控制欲很强的人。而此刻，他不得不承认，他希望那声“主人”是在叫他。\n\n那声尖叫，还有那句破碎的感谢，像是一把刀子，直接捅进了他的大脑皮层。 Graves不配这个念头在他脑海里疯狂滋长。 Ghost 的脑海里无法抑制地浮现出画面：如果是在这里，在他身下，那双攥着摄像头的手是不是会攥紧他的战术背心？那声哭叫是不是会贴着他的耳朵响起？他想把那个声音从 Graves 手里抢过来，藏进自己的安全屋里，只有他能听见，只有他能让她哭出来。\n\n“……还没有追踪到吗。” Ghost 开口了，声音冷得像是从冰窖里捞出来的。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderClimaxGraves()">连麦那头</button>`; }
+        function renderClimaxGraves() { tickSC(); pData.scene = "climaxGraves"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Graves 显然对这个结果满意到了极点。\n\n“乖女孩。”\n\n他的声音里带着餍足后的沙哑和慵懒，哪怕不用看也知道他现在肯定正靠在椅子上，享受着这种掌控一切的快感。 “看来你是真的饿坏了……这个谢礼我很喜欢。去休息吧，不用挂断，我想听你睡觉的声音。”\n\n这个混蛋。 简报室里的四个人在心里同时骂了一句。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderFinalRoom()">直播间</button>`; }
+        function renderFinalRoom() { tickSC(); pData.scene = "finalRoom"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你趴在地毯上，手里还紧紧攥着那个发烫的摄像头，整个人像是一条脱水的鱼，汗水浸湿了碎发。\n\nGraves 并没有挂断连麦，甚至要求继续听着。而你现在的状态确实连爬起来关电脑的力气都没有了。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderEndStream()">结束直播</button>`; }
+        function renderEndStream() { tickSC(); pData.scene = "endStream"; pData.status = "OFFLINE"; updateUI(); currentDanmuStage = "offline"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`即便身体还沉浸在余韵中，你还是强撑着最后一点清醒的意志。摸索到了鼠标，手指还有些不听使唤的颤抖。\n\nGraves 那句变态的“想听你睡觉”你压根就没放在心上，这位金主总是喜欢口头上逗你。\n\n“今天晚上就到这里啦……”\n\n你的声音很轻，带着浓重的鼻音和还没散去的媚意，听起来像是在撒娇，又像是在求饶。 “大家要好好生活哦～爱你们。”`); o.innerHTML = `<button class="opt-btn" onclick="renderSleep()">睡觉</button><button class="opt-btn" onclick="renderOffline141()">看看其他人？</button>`; }
+        function renderSleep() { tickSC(); pData.scene = "sleep"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`一夜无梦。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderCharacterSelect()">继续</button>`; }
+        function renderOffline141() { tickSC(); pData.scene = "offline141"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`大屏幕上的画面戛然而止，变成了 [OFFLINE]。\n\n那种粘稠暧昧的声音消失了，房间里只剩下电脑运转的嗡嗡声。\n\n“……”\n\nSoap 颓然地靠回椅背上，仰头盯着天花板，喉结剧烈地滚动着。他感觉自己浑身燥热，战术背心勒得他喘不过气来，刚才那几声喘息简直像魔咒一样在他脑子里无限循环。\n\nGaz看着屏幕上跳出的提示，揉了揉眉心，声音沙哑得厉害：“……信号断了。追踪只完成了一半。”\n\n“一半？”Price的声音低沉，带着一股压抑的怒气和某种说不清道不明的烦躁。\n\n“大致定位在伦敦，” Gaz在键盘上敲击了几下，调出一张模糊的区域地图，“具体位置不明，但信号源在……某个大学附近。”\n\n“大学。”\n\n一直沉默的Ghost突然开口了。这两个字被他咬得很重，听不出情绪。\n\n虽然不知道她是谁，不知道她长什么样。 但现在他们知道了，她在伦敦，是个学生，而且……Graves是她的“榜一”。\n\n“好了。”Price站起身，动作有些僵硬地整理了一下装备，试图找回作为队长的威严，但这屋子里弥漫的荷尔蒙气息实在太重了，“既然Graves的资金流向查到了这里，我们就不能无视。继续监控这个账号……以及那个 ID。”\n\n没有人反驳。毕竟他们每个人心里都很清楚，哪怕没有任务，他们也会继续“监控”下去的。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderCharacterSelect()">继续</button>`; }
+        function renderCharacterSelect() { tickSC(); pData.scene = "charSelect"; const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`你想看看谁的反应呢？`); o.innerHTML = `<button class="opt-btn" onclick="renderSoapPOV()">John Soap MacTavish</button><button class="opt-btn" onclick="renderGazPOV()">Kyle Garrick</button><button class="opt-btn" onclick="renderGhostPOV()">Simon Ghost Riley</button><button class="opt-btn" onclick="renderPricePOV()">John Price</button>`; }
+        function renderSoapPOV() { tickSC(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Soap是第一个受不了这种死寂而冲出房间的。\n\n他甚至没跟Price打报告，直接回房间撞开了浴室的门，连衣服都没脱，就拧开了花洒。\n\n冰凉的水柱劈头盖脸地浇下来，顺着他发烫的脸颊和脖颈流进衣领里。他撑在墙壁上，大口大口地喘着粗气，试图用物理降温的方式压下体内那股横冲直撞的邪火。\n\n“操……”\n\n他低骂了一声。\n\n闭上眼睛，脑子里全是刚才那声带着哭腔的“谢谢主人”，怎么甩都甩不掉。\n\n他恼怒地锤了一下墙壁，他不仅是在气Graves那个混蛋居然能享受到这种待遇，更是在气自己居然对着一个连脸都没露，还在被死对头玩弄的女人起了反应，而且这反应剧烈得让他到现在裤子都紧绷得发痛。\n\n“别想了，Johnny……别他妈想了。”`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderNextPart()">继续</button>`; }
+        function renderGazPOV() { tickSC(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Gaz并没有离开座位。\n\n他戴着那副昂贵的降噪耳机，手指在音频编辑软件上微调。屏幕上显示的是刚才那段直播的音频波形图。\n\n他截取了最后那段——从你开始喘息，到最后那句断断续续的求饶。\n\n“只是为了建立声纹档案...” 他在心里给自己找了个冠冕堂皇的理由，“为了以后能更快地识别目标。”\n\n但他并没有把这段音频上传到公共服务器。相反，他鬼使神差地点击了“保存到本地”，并加密存进了一个伪装成系统文件的私人文件夹里。\n\n他盯着那个波形图，手指无意识地摩挲着鼠标滚轮。他又点了一次播放。\n\n“哈啊……”\n\nGaz的喉结剧烈滚动了一下。他把脸埋进了手掌里，长叹了一口气。他一直觉得自己是个专业冷静的人，但今晚，他觉得自己像个偷窥狂。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderNextPart()">继续</button>`; }
+        function renderGhostPOV() { tickSC(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Ghost是唯一一个从头到尾没有离开房间、也没有表现出明显失态的人。\n\n他坐在最角落的椅子上，手里拿着一块擦枪布，正在机械地擦拭着他的枪。\n\n他的大脑还在处理着今晚的信息。\n\nGraves叫她“${pData.web}”、 她在伦敦、她是学生、她很缺钱（不然不会做这个）、而且……她很听话。\n\n只要给她足够的钱，或者是某种强硬的命令，她就会像刚才那样哭着求饶。\n\n一种近乎病态的占有逻辑在他脑海里成型：Graves是敌人。敌人的资源需要被切断，或者……被掠夺？\n\n既然Graves喜欢玩远程控制，那如果在现实中找到她呢？如果在她直播的时候，就站在她房间的阴影里呢？\n\n他站起身，走到Gaz的身后，看着那个还停留在音频界面的屏幕，声音冷静：“Gaz。”\n\nGaz 吓得差点从椅子上跳起来：“什、什么？Ghost？”\n\n“明天把所有大学城附近的监控权限搞到手。”\n\nGhost的目光扫过那个音频波形图，在那句“谢谢主人”的波峰上停留了一秒。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderNextPart()">继续</button>`; }
+        function renderPricePOV() { tickSC(); const t = document.getElementById('main-text'); const o = document.getElementById('option-bar'); t.innerHTML = formatText(`Price站在阳台上，手里夹着一根刚刚点燃的雪茄。烟雾在潮湿的冷空气中缭绕上升，模糊了他深邃的眉眼。\n\n作为一个老兵，他什么场面没见过？但今晚这场面…确实有点超纲了。\n\n他感到一种深深的冒犯感。不仅是因为Graves在用肮脏的手段洗钱（Graves：风评被害），更因为那个混蛋在通过这种方式展示某种“权力”。\n\nPrice吐出一口烟圈，眼神沉重。他在脑海里复盘刚才的每一个细节：红色的勒痕，那双攥着摄像头的手，还有...那声顺从的呼喊。\n\n“Shadow Company……” 他低声念着这个名字，语气里带着杀意，但随即又变成了一声自嘲的冷笑，“……品味倒是不错。”\n\n他烦躁地把还没抽完的雪茄按灭在栏杆上，他不得不承认，你的声音勾起了他心底某些属于男人的、原始的征服欲。这让他感到危险。`); o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderNextPart()">继续</button>`; }
+
+        // --- 第二章：日常与危机 ---
+
+        function renderNextPart() {
+            tickSC(); pData.scene = "nextPart"; currentDanmuStage = "standby"; 
+            pData.date = "2026.01.04"; pData.time = "08:30"; pData.weather = "潮湿"; pData.env = "公寓 / 卧室";
+            pData.outfit = "米白色毛衣、棕色大衣";
+            updateUI();
+
+            const t = document.getElementById('main-text');
+            const o = document.getElementById('option-bar');
+            
+            t.innerHTML = formatText(`伦敦的雨还在下，阴冷潮湿。\n\n你被闹钟从沉睡中叫醒时，还是感觉身体有些酸软。\n\n你迷迷糊糊地摸过手机，看了一眼后台收益。 那一串数字让你瞬间清醒了。Shadow昨晚打赏的金额，足够你在这个昂贵的城市舒舒服服地生活好几个月，甚至还能买几个奢侈包包。\n\n“变态……但是一如既往大方。”你嘟囔了一句，心情颇好地起床洗漱。\n\n既然是白天，那你就是“${pData.real}”。\n\n整个人看起来就是一个虽然漂亮、清秀但随处可见的亚裔留学生，这种平庸反倒让你觉得安心。`);
+            o.innerHTML = `
+                <button class="opt-btn" onclick="renderBuyBreakfast()">去买点早饭吧？</button>
+                <button class="opt-btn" onclick="renderGoSchool()">直接去学校</button>
+            `;
+        }
+
+        function renderBuyBreakfast() {
+            tickSC(); pData.scene = "buyBreakfast"; pData.env = "街头 / 咖啡馆"; updateUI();
+            const t = document.getElementById('main-text');
+            const o = document.getElementById('option-bar');
+            
+            t.innerHTML = formatText(`早课前的咖啡馆人满为患。你排在队伍里，低头看着手机里的新闻，周围是嘈杂的交谈声和咖啡机的蒸汽声。\n\n“Next, please!”\n\n“面包（你习惯的那个品种），谢谢。”\n\n你伸出右手去刷卡，深酒红色的指甲，在黑色的刷卡机上形成了强烈的视觉对比。\n\n街道对面，一辆停在路边的黑色不起眼的轿车内。\n\nGhost坐在副驾驶，目光冷冷的扫视着进出咖啡馆的人群。 Soap坐在驾驶座，手里捧着一杯已经凉了的黑咖啡，眼睛里布满了血丝。\n\n显然，昨晚谁都没睡好。\n\n“这简直是大海捞针。”Soap揉了揉头发，“这个区这么大，我们就凭一个声音和一双手？”\n\n“还有IP地址的大致范围。” 后座的Gaz正在摆弄着平板电脑，但他看起来也有些精神不济，“而且昨晚那个信号最后消失就在这附近。”\n\nGhost没有说话，他的视线过滤着每一个目标。 太高、太矮、发色不对、走路姿势不对……\n\n就在这时，咖啡馆的玻璃门被推开了。\n\n一个穿着米白色毛衣和棕色大衣的女孩走了出来，一个非常普通的女性。\n\nGhost 本来都要移开视线了。\n\n但就在那一秒，你为了调整雨伞的位置，抬起了右手。 指尖上那抹深酒红色的指甲油，引起了了Ghost的注意。\n\n“……十点钟方向。”Ghost突然开口，声音低沉紧绷。\n\n“什么？”Soap顺着他的视线看过去，“那个戴围巾的亚裔女孩？除了看起来挺乖的，有什么特——”\n\nSoap的话卡在了喉咙里，他也看到了那只手。 昨晚的直播间里，就是这只手，涂着这个颜色的指甲油，攥着那个白色的跳蛋。\n\n车厢里陷入了沉默。\n\n你并没有察觉到这道几乎要将你穿透的视线，拢了拢大衣，融入了熙熙攘攘的人流中，只留下一个看起来毫无防备的背影。\n\nSoap咽了一口唾沫，感觉喉咙发干：“……是她吗？”\n\nGhost没有回答。他的目光一直追随着那个背影，直到你消失在街角的转弯处。 他没有下车，没有去追，甚至没有让Gaz查你的脸部识别。\n\n“……酒红色的指甲。” Ghost缓缓收回视线，靠回座椅，扭头看向Gaz，手指无意识地摩挲了一下战术手套的边缘： “……找到了。”`);
+            o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="renderGoSchool()">去学校</button>`;
+        }
+
+        function renderGoSchool() {
+            tickSC(); pData.scene = "goSchool"; pData.env = "大学 / 教室"; updateUI();
+            const t = document.getElementById('main-text');
+            const o = document.getElementById('option-bar');
+            
+            t.innerHTML = formatText(`一进教室，暖气扑面而来，夹杂着陈旧的书卷味、咖啡香气。\n\n这是一节关于《战后欧洲社会结构》的大课，枯燥乏味，但又是必修学分。教授是一个头发花白、说话慢条斯理的老头，他的声音非常催眠。\n\n你找了个靠后排角落的位置坐下。\n\n周围的同学们都在忙着打开笔记本电脑、或者低声抱怨昨晚的论文。\n\n“嘿，“${pData.real}”。”\n\n旁边的位置有人坐下了，是和你同组的一个金发女生，叫Emma。她把那本厚得像砖头一样的教科书拍在桌子上，一脸生无可恋。 “你看起来精神不错啊？昨晚睡得好吗？我为了那个该死的小组作业熬到了凌晨三点。”\n\n你眨了眨眼，和她分享： “啊……还行吧。我也差不多那个点才睡。”\n\n虽然原因完全不同。她在写论文，而你在被一个从未谋面的男人远程控制着达到高潮。\n\n“真羡慕你，一个人住，我家里人一直催我睡觉。”Emma托着腮帮子侧过头来看你，视线停在了你放在桌面的手上。\n\n“哇！”Emma眼睛亮了一下，伸手轻轻抓过你的手，“这个颜色太好看了！很……性感，真不错！”\n\n被她温热的手指触碰到的瞬间，你下意识地缩了一下手，心脏漏跳了一拍。\n\n“呃……谢谢。” 你不自然地蜷缩起手指，试图把指尖藏进袖口里，脸颊微微泛红，“我把店铺推荐给你。”\n\n“真的？现在发我宝贝！”Emma没有多想，松开了手转头看向讲台，“教授又开始念经了，天哪，杀了我吧。”\n\n你摇了摇头，试图把昨晚那些乱七八糟的画面从脑子里赶出去。\n\n“集中注意力，“${pData.real}”。你是来留学的，不是来当全职网黄的。”\n\n你深吸一口气，提笔在纸上写下了课程标题。\n\n就在这时，你的手机震动了一下。屏幕亮起，不是社交软件的消息，而是银行APP的入账通知。`);
+            o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="showBankModal()">查看</button>`;
+        }
+        
+        function showBankModal() {
+            document.getElementById('bank-modal').style.display = 'flex';
+        }
+
+        function closeBankModal() {
+            document.getElementById('bank-modal').style.display = 'none';
+            renderAfterBank();
+        }
+
+        function renderAfterBank() {
+            tickSC(); pData.scene = "afterBank";
+            const t = document.getElementById('main-text');
+            const o = document.getElementById('option-bar');
+            
+            t.innerHTML = formatText(`你盯着那个极其简短的备注“S”，Shadow？他是怎么知道你的私人收款账户的？不对……大概是通过平台提现渠道的某种额外打赏功能？又或者这种级别的大佬都是有自己的能力的？\n\n你迅速把手机反扣在桌面上，心跳有些加速。`);
+            o.innerHTML = `<button class="opt-btn" style="text-align:center" onclick="alert('收到钱开心吗！.')">收钱干饭！</button>`;
+        }
+        
+        setInterval(() => {
+            if(pData.status === "LIVE") {
+                const pool = danmuStages[currentDanmuStage];
+                const m = pool[Math.floor(Math.random()*pool.length)];
+                addChat("用户_"+Math.floor(Math.random()*999), m);
+            }
+        }, 5000);
+    </script>
+</body>
+</html>
